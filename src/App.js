@@ -99,11 +99,9 @@ class App extends Component {
     this.setState({
       issueTotal: issueCount,
       errorMessage: '',
-      isLoading: false
     });
 
     this.fetchIssuesWithinWeek();
-    // GithubService.getIssuesSince(url.parse(this.state.repoUrl).path, this.state.currentTime, this.handleRepoData);
   }
 
   /**
@@ -113,7 +111,7 @@ class App extends Component {
     let repoPath = url.parse(this.state.repoUrl).path,
       dateTimeWeekAgo = moment(this.state.currentTime).subtract(1, 'weeks').format();
 
-    
+
     GithubService.getIssuesSince(repoPath, dateTimeWeekAgo, this.handleWeekCount);
   }
 
@@ -156,14 +154,13 @@ class App extends Component {
     this.setState({
       issueWeek: issueCount,
       errorMessage: '',
-      // isLoading: false
     });
 
     this.fetchIssuesWithinDay();
   }
 
   /**
-   * Used as callback to be invoked when api returns issue count of within week
+   * Used as callback to be invoked when api returns issue count of within day
    */
   handleDayCount = (err, res) => {
     let issueCount;
@@ -179,14 +176,6 @@ class App extends Component {
 
     issueCount = res.data.repository.issues.totalCount;
 
-    if (issueCount === 0) {
-      this.setState({
-        issueDay: 0,
-        isLoading: false
-      });
-      return;
-    }
-
     this.setState({
       issueDay: issueCount,
       errorMessage: '',
@@ -195,61 +184,10 @@ class App extends Component {
   }
 
   /**
-   * Used as callback function to be invoked when api returns data.
-   */
-  handleRepoData = (err, data) => {
-    let issues;
-
-    if (err) {
-      this.setState({
-        errorMessage: 'Something went wrong',
-        issueList: [],
-        isLoading: false
-      });
-      return;
-    }
-
-    // If the data is not array, it means that api did not find a matching repository
-    if (!Array.isArray(data)) {
-      this.setState({
-        errorMessage: 'No repository found. Change search url',
-        issueList: [],
-        isLoading: false
-      });
-      return;
-    }
-
-    // If array is empty, No issue are open in the repository.
-    if (Array.isArray(data) && data.length === 0) {
-      this.setState({
-        errorMessage: 'No issues in this repository',
-        issueList: [],
-        isLoading: false
-      });
-      return;
-    }
-
-    issues = data.filter(element => {
-      if (element.hasOwnProperty('pull_request')) {
-        return false;
-      }
-
-      return true;
-    });
-
-    // If no problems in data, then update state with data and hide loading state.
-    this.setState({
-      issueList: issues,
-      isLoading: false
-    });
-
-  }
-
-  /**
    * Return counts of issue that were opened a week ago or before.
    */
   getIssueBeforeWeek = () => {
-    let {issueTotal, issueWeek } = this.state;
+    let { issueTotal, issueWeek } = this.state;
 
     return issueTotal - issueWeek;
   }
@@ -260,28 +198,28 @@ class App extends Component {
   getIssueWithinWeek = () => {
     let { issueDay, issueWeek } = this.state;
 
-    return issueWeek - issueDay ;
+    return issueWeek - issueDay;
   }
 
   /**
    * Returns count of issues opened in the last 24 hours.
    */
   getIssueWithinDay = () => {
-   return this.state.issueDay;
+    return this.state.issueDay;
   }
 
   render() {
     return (
       <div className="container-fluid text-center">
         <div className='main'>
-          <div class="form-group mt-3">
+          <div className="form-group mt-3">
             <h3 className='text-light'>Enter a Github repository URL</h3>
             <input
               type="text"
               className="form-control form-control-lg mt-3"
               id="exampleInputEmail1"
               aria-describedby="emailHelp"
-              placeholder="Enter URL. Example- https://github.com/dydeepak97/radius-agent-task"
+              placeholder="Enter URL of repository"
               value={this.state.repoUrl}
               onChange={this.handleUrlFieldChange}
               autoFocus
@@ -295,7 +233,7 @@ class App extends Component {
             {
               this.state.isLoading ?
                 <div>
-                  <span class="spinner-grow spinner-border-sm" role="status" aria-hidden="true"></span>
+                  <span className="spinner-grow spinner-border-sm" role="status" aria-hidden="true"></span>
                 </div>
                 :
                 'Search'

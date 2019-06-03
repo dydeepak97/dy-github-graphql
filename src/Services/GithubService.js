@@ -1,37 +1,19 @@
 import { makeApiCall } from "./UtilService";
-import url from 'url';
 
 const GITHUB_API_HOST = 'https://api.github.com/graphql';
 
 const ACCESS_TOKEN = process.env.REACT_APP_GITHUB;
 
 /**
- * This function is used to fetch issues for a  given 
- * repository url. It calls @makeApiCall to fetch the data
+ * This function is used to fetch total open issue count for a  given 
+ * repository. It calls @makeApiCall to fetch the data
  * from api and passed callback function to it.
  * 
  * @param {String} repoUrl 
  * @param {Function} cb 
  */
 
-// export function getIssuesForRepository(repoUrl, cb) {
-//   let repoPath = url.parse(repoUrl).pathname,
-//     requestOptions = {
-//       protocol: 'https',
-//       hostname: GITHUB_API_HOST,
-//       // pathname: `repos${repoPath}/issues`,
-//       // query: {
-//       //   state: 'open',
-//       //   per_page: 100   // Maximum allowed page size
-//       // }
-//     }
-
-//   return makeApiCall(requestOptions, cb);
-// };
-
 export function getTotalIssues(repoPath, cb) {
-  console.log(repoPath);
-  
   let pathSplit = repoPath.split('/'),
     owner = pathSplit[1],
     repo = pathSplit[2],
@@ -57,9 +39,17 @@ export function getTotalIssues(repoPath, cb) {
 
 }
 
-export function getIssuesSince(repoPath, dateTime, cb) {
-  console.log(repoPath);
-  
+/**
+ * This function is used to fetch issues count for a  given 
+ * repository since a given time. It calls @makeApiCall to fetch the data
+ * from api and passed callback function to it.
+ * 
+ * @param {String} repoUrl 
+ * @param {DateTime} dateTime
+ * @param {Function} cb 
+ */
+
+export function getIssuesSince(repoPath, dateTime, cb) {  
   let pathSplit = repoPath.split('/'),
     owner = pathSplit[1],
     repo = pathSplit[2],
