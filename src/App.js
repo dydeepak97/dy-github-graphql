@@ -2,7 +2,8 @@ import React, { Component } from 'react';
 import 'bootstrap/dist/css/bootstrap.css';
 import './App.css';
 import moment from 'moment';
-import { getIssuesForRepository } from './Services/GithubService';
+import url from 'url';
+import * as GithubService from './Services/GithubService';
 import CountTable from './Components/CountTable';
 import SpinnerGroup from './Components/SpinnerGroup';
 
@@ -11,7 +12,9 @@ class App extends Component {
     super(props);
     this.state = {
       repoUrl: '',
-      issueList: [],
+      issueTotal: undefined,
+      issueWeek: undefined,
+      issueDay: undefined,
       errorMessage: 'Hit Search to get issue counts',
       isLoading: false,
       currentTime: moment().format()
@@ -30,19 +33,164 @@ class App extends Component {
       return;
     }
 
-    // To hide errorMessage and Display loading state
+    let repoPath = url.parse(this.state.repoUrl).path;
+
+    // To check if the given url has owner and repoName as path
+    if (!repoPath || repoPath.split('/').length < 2) {
+      this.setState({
+        errorMessage: 'Invalid URL.'
+      });
+      return;
+    }
+
+    // To hide errorMessage and display loading state
     this.setState({
       isLoading: true,
       errorMessage: ''
     });
 
     // Fetch issues from api.
-    getIssuesForRepository(this.state.repoUrl, this.handleRepoData)
+    GithubService.getTotalIssues(repoPath, this.handleTotalCount)
   }
 
   handleUrlFieldChange = (event) => {
     this.setState({
       repoUrl: event.target.value
+    });
+  }
+
+  /**
+   * Used as callback to be invoked when when api return total count of issues
+   */
+  handleTotalCount = (err, res) => {
+    let issueCount;
+
+    if (err) {
+      this.setState({
+        errorMessage: 'Something went wrong',
+        issueTotal: undefined,
+        isLoading: false
+      });
+      return;
+    }
+
+    if (res.errors) {
+      this.setState({
+        errorMessage: 'No repository found. Change search URL',
+        issueTotal: undefined,
+        isLoading: false
+      });
+      return;
+    }
+
+    issueCount = res.data.repository.issues.totalCount;
+
+    if (issueCount === 0) {
+      this.setState({
+        errorMessage: 'No issues in this repository',
+        issueTotal: 0,
+        issueWeek: 0,
+        issueDay: 0,
+        isLoading: false
+      });
+      return;
+    }
+
+    this.setState({
+      issueTotal: issueCount,
+      errorMessage: '',
+      isLoading: false
+    });
+
+    this.fetchIssuesWithinWeek();
+    // GithubService.getIssuesSince(url.parse(this.state.repoUrl).path, this.state.currentTime, this.handleRepoData);
+  }
+
+  /**
+   * Used to fetch issue within 7 days
+   */
+  fetchIssuesWithinWeek = () => {
+    let repoPath = url.parse(this.state.repoUrl).path,
+      dateTimeWeekAgo = moment(this.state.currentTime).subtract(1, 'weeks').format();
+
+    
+    GithubService.getIssuesSince(repoPath, dateTimeWeekAgo, this.handleWeekCount);
+  }
+
+  /**
+   * Used to fetch issue within 24 hours
+   */
+  fetchIssuesWithinDay = () => {
+    let repoPath = url.parse(this.state.repoUrl).path,
+      dateTimeDayAgo = moment(this.state.currentTime).subtract(1, 'days').format();
+
+    GithubService.getIssuesSince(repoPath, dateTimeDayAgo, this.handleDayCount);
+  }
+
+  /**
+   * Used as callback to be invoked when api returns issue count of within week
+   */
+  handleWeekCount = (err, res) => {
+    let issueCount;
+
+    if (err) {
+      this.setState({
+        errorMessage: 'Something went wrong',
+        issueTotal: undefined,
+        isLoading: false
+      });
+      return;
+    }
+
+    issueCount = res.data.repository.issues.totalCount;
+
+    if (issueCount === 0) {
+      this.setState({
+        issueWeek: 0,
+        issueDay: 0,
+        isLoading: false
+      });
+      return;
+    }
+
+    this.setState({
+      issueWeek: issueCount,
+      errorMessage: '',
+      // isLoading: false
+    });
+
+    this.fetchIssuesWithinDay();
+  }
+
+  /**
+   * Used as callback to be invoked when api returns issue count of within week
+   */
+  handleDayCount = (err, res) => {
+    let issueCount;
+
+    if (err) {
+      this.setState({
+        errorMessage: 'Something went wrong',
+        issueTotal: undefined,
+        isLoading: false
+      });
+      return;
+    }
+
+    issueCount = res.data.repository.issues.totalCount;
+
+    if (issueCount === 0) {
+      this.setState({
+        issueDay: 0,
+        isLoading: false
+      });
+      return;
+    }
+
+    this.setState({
+      issueDay: issueCount,
+      errorMessage: '',
+      isLoading: false
     });
   }
 
@@ -81,8 +229,8 @@ class App extends Component {
       return;
     }
 
-    issues = data.filter( element => {
-      if(element.hasOwnProperty('pull_request')){
+    issues = data.filter(element => {
+      if (element.hasOwnProperty('pull_request')) {
         return false;
       }
 
@@ -94,53 +242,32 @@ class App extends Component {
       issueList: issues,
       isLoading: false
     });
-    
+
   }
 
   /**
    * Return counts of issue that were opened a week ago or before.
    */
   getIssueBeforeWeek = () => {
-    let { issueList } = this.state,
-      count = 0;
-    issueList.forEach(issue => {
-      if (moment(issue.created_at).format() < moment(this.state.currentTime).subtract(1, 'weeks').format()) {
-        count++;
-      }
-    });
+    let {issueTotal, issueWeek } = this.state;
 
-    return count;
+    return issueTotal - issueWeek;
   }
 
   /**
    * Returns count of issues opened within this week but before last 24 hours.
    */
   getIssueWithinWeek = () => {
-    let { issueList } = this.state,
-      count = 0;
-    issueList.forEach(issue => {
-      if (moment(issue.created_at).format() > moment(this.state.currentTime).subtract(1, 'weeks').format() &&
-        moment(issue.created_at).format() < moment(this.state.currentTime).subtract(1, 'days').format()) {
-        count++;
-      }
-    });
+    let { issueDay, issueWeek } = this.state;
 
-    return count;
+    return issueWeek - issueDay ;
   }
 
   /**
    * Returns count of issues opened in the last 24 hours.
    */
   getIssueWithinDay = () => {
-    let { issueList } = this.state,
-      count = 0;
-    issueList.forEach(issue => {
-      if (moment(issue.created_at).format() > moment(this.state.currentTime).subtract(1, 'days').format()) {
-        count++;
-      }
-    });
-
-    return count;
+   return this.state.issueDay;
   }
 
   render() {
@@ -183,7 +310,7 @@ class App extends Component {
             (this.state.isLoading ?
               <SpinnerGroup /> :
               <CountTable
-                total={this.state.issueList.length}
+                total={this.state.issueTotal}
                 beforeWeek={this.getIssueBeforeWeek()}
                 withinWeek={this.getIssueWithinWeek()}
                 withinDay={this.getIssueWithinDay()}
